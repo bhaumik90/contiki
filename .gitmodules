@@ -17,3 +17,9 @@
 [submodule "tools/sensniff"]
 	path = tools/sensniff
 	url = https://github.com/g-oikonomou/sensniff.git
+[submodule "apps/mv-client"]
+	path = apps/mv-client
+	url = https://github.com/bhaumik90/MeshView-Client.git
+[submodule "examples/mv-client-test"]
+	path = examples/mv-client-test
+	url = https://github.com/bhaumik90/MeshView-Client-Test.git
