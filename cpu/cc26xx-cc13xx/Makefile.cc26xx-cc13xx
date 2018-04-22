@@ -27,7 +27,11 @@ CFLAGS += -I$(TI_XXWARE) -I$(CONTIKI)/$(TI_XXWARE_SRC)
 CFLAGS += -I$(TI_XXWARE)/inc
 MODULES += $(TI_XXWARE_SRC)
 
+ifeq ($(OTA_IMAGE),1)
+LDSCRIPT = $(CONTIKI_CPU)/cc26xx-ota-image.ld
+else
 LDSCRIPT = $(CONTIKI_CPU)/cc26xx.ld
+endif
 
 CFLAGS += -mcpu=cortex-m3 -mthumb -mlittle-endian
 CFLAGS += -ffunction-sections -fdata-sections
