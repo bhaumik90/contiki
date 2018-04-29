@@ -47,7 +47,7 @@ PROCESS_THREAD(fota_client, ev, data)
 
 	static coap_packet_t request[1];
 	FOTA_SERVER(&fota_server_addr);
-  coap_init_engine();
+	coap_init_engine();
   rest_init_engine();
 
   fota_init = process_alloc_event();
@@ -65,8 +65,7 @@ PROCESS_THREAD(fota_client, ev, data)
 			{
 				coap_init_message(request, COAP_TYPE_CON, COAP_PUT, 0);
 				coap_set_header_uri_path(request, "/5/0");
-				const char msg[] = "Initialized";
-				coap_set_payload(request, (uint8_t *)msg, sizeof(msg) - 1);
+				coap_set_payload(request, linkaddr_node_addr.u8, UIP_LLADDR_LEN);
 				COAP_BLOCKING_REQUEST(&fota_server_addr, UIP_HTONS(COAP_DEFAULT_PORT), request, client_chunk_handler);
 			}
 		}
