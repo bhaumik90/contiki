@@ -1,13 +1,13 @@
 all: master bootloader ota-image
 
+ifeq ($(TARGET),)
 TARGET=srf06-cc26xx
+endif
+ifeq ($(BOARD),)
 BOARD=sensortag/cc1350
+endif
 
 CONTIKI_EXAMPLES = ..
-
-# ifndef VERSION
-# 	${error "Mention the version of firmware image."}
-# endif
 
 %.o: %.c
 	@gcc -std=c99 -c $< -o $@
@@ -34,6 +34,9 @@ ota-image: generate-metadata
 ifndef EXAMPLE
 	${error "Please define an EXAMPLE to add with bootloader."}
 endif
+ifeq ($(wildcard $(CONTIKI_EXAMPLES)/$(EXAMPLE)/.),)
+	${error "$(CONTIKI_EXAMPLES)/$(EXAMPLE) does not exists."}
+endif
 ifndef VERSION
 	${error "Please provide 16-bit firmware version. e.g. \"1.0\" as 0x0100 "}
 endif
@@ -50,6 +53,10 @@ clean:
 	@rm -f *.out *.bin;
 	@cd ./bootloader; make clean;
 ifdef EXAMPLE
+ifeq ($(wildcard $(CONTIKI_EXAMPLES)/$(EXAMPLE)/.),)
+	${error "$(CONTIKI_EXAMPLES)/$(EXAMPLE) does not exists."}
+else
 	@cd $(CONTIKI_EXAMPLES)/$(EXAMPLE); make clean;
 endif
-	
+endif
+
