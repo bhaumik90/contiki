@@ -68,11 +68,13 @@ res_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferr
 	{
 		REST.set_response_status(response, CONTINUE_2_31);
 		coap_set_header_block1(response, coap_req->block1_num, 0, coap_req->block1_size);
+		coap_set_header_uri_path(response, "/5/1");
 	}
 	else
 	{
 		REST.set_response_status(response, REST.status.CHANGED);
 		coap_set_header_block1(response, coap_req->block1_num, 0, coap_req->block1_size);
+		coap_set_header_uri_path(response, "/5/1");
 		process_post(&fota_client, fota_verify, NULL);
 	}
 }
