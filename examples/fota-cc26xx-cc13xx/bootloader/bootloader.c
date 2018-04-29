@@ -4,14 +4,7 @@
 #include "fota-engine.h"
 #include "fota-client.h"
 #include "crc16.h"
-#include "cc26xx-uart.h"
 #include "flash.h"
-
-static void
-printOnSerial(char *data, uint16_t data_len)
-{
-  // for(uint16_t i=0; i<data_len;i++) cc26xx_uart_write_byte(data[i]);
-}
 
 static void
 power_domains_on(void) {
@@ -67,8 +60,6 @@ initialize_peripherals()
   /* Make sure the external flash is in the lower power mode */
   ext_flash_init();
 
-  // cc26xx_uart_init();
-
   /* Re-enable interrupt if initially enabled. */
   if(!int_disabled) {
     ti_lib_int_master_enable();
@@ -92,9 +83,6 @@ verifyOtaImage(fwMetaData_t *otaSlotMetaData)
   uint32_t firmware_end_address = firmware_address + otaSlotMetaData->size;
   uint16_t imageCRC = 0; uint8_t _word[4];
 
-  printOnSerial("S: ",3); printOnSerial(&firmware_address,4); printOnSerial("\n",1);
-  printOnSerial("E: ",3); printOnSerial(&firmware_end_address,4); printOnSerial("\n",1);
-
   while(firmware_address < firmware_end_address) 
 	{
 		eeprom_access = ext_flash_read(firmware_address, 4, _word);
@@ -103,8 +91,6 @@ verifyOtaImage(fwMetaData_t *otaSlotMetaData)
     imageCRC = crc16_data(_word, 4, imageCRC);
     firmware_address += 4; // move 4 bytes forward
   }
-
-  printOnSerial("C: ",3); printOnSerial(&imageCRC,2); printOnSerial("\n",1);
 
 	if(imageCRC==otaSlotMetaData->crc16) return 0;
 	else return 1;
@@ -123,7 +109,7 @@ installImage()
   {
     if(FlashSectorErase((CURRENT_FIRMWARE<<12)+4096*i)!=FAPI_STATUS_SUCCESS)
     {
-      printOnSerial("Error", 5); ext_flash_close(); return;
+      ext_flash_close(); return;
     }
 
     eeprom_access = ext_flash_read(((GOLDEN_IMAGE<<12)+4096*i), 4096, fwData);
@@ -133,6 +119,25 @@ installImage()
   }
 
   ext_flash_close();
+}
+
+static int
+eraseOtaSlot()
+{
+  int eeprom_access = ext_flash_open();
+  if(!eeprom_access) { ext_flash_close(); return -1; }
+
+  for (int page=0; page<25; page++)
+	{
+    // Kick the watchdog. Use watchdog library instead? (beware of bootloader size)
+    ti_lib_watchdog_reload_set(0xFFFFF);
+    ti_lib_watchdog_int_clear();
+
+    eeprom_access = ext_flash_erase(((GOLDEN_IMAGE + page) << 12), FLASH_PAGE_SIZE);
+    if(!eeprom_access) { ext_flash_close(); return -1; }
+  }
+  ext_flash_close();
+  return 0;
 }
 
 int
@@ -145,18 +150,9 @@ main(void)
   getCurrentMetadata((uint8_t *)&currentMetadata);
   getOtaSlotMetadata(&otaMetadata);
 
-  printOnSerial("currVer: ", 9);
-  printOnSerial((char *)&currentMetadata.version, 2);
-  printOnSerial("\n", 1);
-
-  printOnSerial("otaVer: ", 8);
-  printOnSerial((char *)&otaMetadata.version, 2);
-  printOnSerial("\n", 1);
-
   // Any currently installed images
   if(currentMetadata.version==0xFFFF)
   {
-    printOnSerial("NOT BOOTING\n", 12);
     // No img installed..let's check if any is available in ext mermory
     if(otaMetadata.version==0xFFFF)
     {
@@ -180,18 +176,17 @@ main(void)
     if((otaMetadata.version==0xFFFF) || (otaMetadata.version <= currentMetadata.version))
     {
       // Image either not present or an old version. Lets boot our current image
-      printOnSerial("BOOTING IMAGE\n", 14);
+      eraseOtaSlot();
       bootImage();
     }
     else
     {
-      printOnSerial("BOOTING NEW IMAGE\n", 18);
       // We have a better image in external memory. Let's verify it
       if(!verifyOtaImage(&otaMetadata))
       {
-        printOnSerial("verified\n", 9);
         // Verification successful. Let's install it
         installImage();
+        eraseOtaSlot();
         ti_lib_sys_ctrl_system_reset();
       }
     }
